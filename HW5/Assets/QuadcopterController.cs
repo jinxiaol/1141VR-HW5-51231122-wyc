@@ -34,45 +34,38 @@ public class QuadcopterController : MonoBehaviour
         }
     }
 
-    // �o���ڭ̦b Update() �B�z���ʩM����A�o�˷|���F�ӡ]�D���z���ʡ^
     void Update()
     {
-        // 1. ���౱�� (A/D �Υ��k��V��)
-        // ��o A/D �䪺��J�� (�d�� -1 �� 1)
+        // 1. 旋轉控制 (A/D 或左右方向鍵)
         float turnInput = Input.GetAxis("Horizontal");
-
-        // ���k����G�ϥ� transform.Rotate() ��{��a��V
         float yawRotation = turnInput * rotationSpeed * Time.deltaTime;
+
+        // 左右旋轉：仍然使用 transform.Rotate() 實現原地轉向
         transform.Rotate(Vector3.up, yawRotation);
 
-        // 2. �e�i/��h���� (W/S �ΤW�U��V��)
-        // ��o W/S �䪺��J�� (�d�� -1 �� 1)
+        // 2. 獲取前進/後退/升降輸入
         float forwardInput = Input.GetAxis("Vertical");
-
-        // �e�i/��h�G�ϥ� transform.Translate() �u�۪���ۨ����e��(transform.forward)����
-        Vector3 movement = transform.forward * forwardInput * moveSpeed * Time.deltaTime;
-        transform.Translate(movement, Space.World); // �����ʻP�@�ɮy�Шt��� (�i��A�� transform.forward ��X�A)
-
-        // 3. �����ɭ����� (Space �W�� / LeftShift �U��)
         float liftInput = 0f;
-        if (Input.GetKey(KeyCode.Space))      // �ť���G�W��
+        if (Input.GetKey(KeyCode.Space))
             liftInput = 1f;
-        if (Input.GetKey(KeyCode.LeftShift))  // �� Shift�G�U��
+        if (Input.GetKey(KeyCode.LeftShift))
             liftInput = -1f;
 
-        // �������ʡG�����ק� y �b��m
-        transform.position += Vector3.up * liftInput * verticalSpeed * Time.deltaTime;
+        // 3. 計算目標速度
+        Vector3 targetVelocity = transform.forward * forwardInput * moveSpeed;
+        targetVelocity += Vector3.up * liftInput * verticalSpeed;
 
-        // �i���n�j�ѩ�ڭ̥D�n�ϥ� transform �i�沾�ʡA�o�̻ݭn���] Rigidbody ���t��
-        // �_�h���z�����i��y���ưʩγt�ײֿn
+        // 4. 應用速度到 Rigidbody
         if (rb != null)
         {
-            rb.linearVelocity = Vector3.zero;
+            // 將 Rigidbody 的速度設定為我們計算出的目標速度
+            rb.linearVelocity = targetVelocity;
+
+            // 為了避免旋轉過快，鎖定角速度 (可選)
             rb.angularVelocity = Vector3.zero;
         }
     }
 
-    // �B�z�I���ƥ� (��������ê��)
     void OnCollisionEnter(Collision collision)
     {
         if (collision.gameObject.CompareTag("Obstacle"))
@@ -86,23 +79,20 @@ public class QuadcopterController : MonoBehaviour
     }
 
     // �B�zĲ�o�ƥ� (���Q�q�L PassZone �ϰ�)
+    // 【新版】允許重複觸發音效
+
     void OnTriggerEnter(Collider other)
     {
+        // 檢查是否為 PassZone
         if (other.gameObject.CompareTag("PassZone"))
         {
-            int zoneID = other.gameObject.GetInstanceID();
-
-            // �u���Ĥ@���i�J PassZone �ɤ~���񭵮�
-            if (!passedZones.Contains(zoneID))
+            // 直接播放通過音效，不再檢查是否已經通過過
+            if (audioSource != null && passSound != null)
             {
-                if (audioSource != null && passSound != null)
-                {
-                    audioSource.PlayOneShot(passSound);
-                }
-
-                passedZones.Add(zoneID);
-                Debug.Log("���Q�q�L�@�� PassZone�I");
+                audioSource.PlayOneShot(passSound);
             }
+
+            Debug.Log("通過區域音效播放！");
         }
     }
 }
