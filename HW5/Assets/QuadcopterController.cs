@@ -1,103 +1,107 @@
 using UnityEngine;
-using System.Collections.Generic; // ¾É¤Jªx«¬¶°¦X¡A¥Î©ó¦s©ñ¤w³q¹Lªº°Ï°ìID
+using System.Collections.Generic;
 
 public class QuadcopterController : MonoBehaviour
 {
-    // --- ¦b Unity Inspector ¤¤³]©wªº¤½¶}ÅÜ¼Æ ---
+    // --- ï¿½Ñ¼Æ³]ï¿½wï¿½Gï¿½zï¿½Ý­nï¿½b Inspector ï¿½Õ¾ï¿½oï¿½Ç¼Æ­ï¿½ ---
+    [Header("ï¿½ï¿½ï¿½Ê³tï¿½×³]ï¿½w")]
+    public float moveSpeed = 5f;     // ï¿½eï¿½i/ï¿½ï¿½hï¿½ï¿½ï¿½tï¿½ï¿½
+    public float rotationSpeed = 100f; // ï¿½ï¿½ï¿½kï¿½ï¿½ï¿½ï¿½tï¿½ï¿½ (ï¿½ï¿½/ï¿½ï¿½)
+    public float verticalSpeed = 3f;   // ï¿½ï¿½ï¿½ï¿½ï¿½É­ï¿½ï¿½tï¿½ï¿½
 
-    [Header("­¸¦æ±±¨î°Ñ¼Æ")]
-    public float thrustForce = 100f; // ««ª½±À¶i¤O (¼vÅT¤É­°)
-    public float pitchTorque = 5f;   // ­Á¥õ§á¤O (¼vÅT«e«á¶É±×)
-    public float yawTorque = 5f;     // °¾¯è§á¤O (¼vÅT¥ª¥kÂà¦V)
+    [Header("ï¿½ï¿½ï¿½ï¿½ï¿½É®ï¿½")]
+    // ï¿½Oï¿½ï¿½ï¿½ï¿½ï¿½Ü¡Aï¿½Î©ï¿½b Inspector ï¿½ì¦²ï¿½ï¿½ï¿½ï¿½
+    public AudioClip flyingSound;
+    public AudioClip collisionSound;
+    public AudioClip passSound;
 
-    [Header("­µ®ÄÀÉ®×")]
-    public AudioClip flyingSound;    // ­¸¦æ®É«ùÄò¼½©ñªº­µ®Ä
-    public AudioClip collisionSound; // ¼²¨ì»ÙÃªª«®Éªº­µ®Ä
-    public AudioClip passSound;      // ¶¶§Q³q¹L»ÙÃªª«®Éªº­µ®Ä
-
-    // --- µ{¦¡¤º³¡¨Ï¥Îªº¤¸¥ó ---
+    // --- ï¿½ï¿½ï¿½ï¿½Pï¿½ï¿½ï¿½A ---
     private Rigidbody rb;
     private AudioSource audioSource;
-
-    // --- ·s¼W¡G°lÂÜ¤w¸g³q¹Lªº PassZone ---
-    // ¥Î¨Ó¦s©ñ¤w¸gÄ²µo¹L³q¹L­µ®Äªº PassZone ª«¥óªº Instance ID
     private HashSet<int> passedZones = new HashSet<int>();
 
     void Start()
     {
-        // 1. ¨ú±o Rigidbody ©M AudioSource ¤¸¥ó
         rb = GetComponent<Rigidbody>();
         audioSource = GetComponent<AudioSource>();
 
-        // ¬°¤F½T«O Rigidbody ªì©l¤£¥ð¯v¡A¥i¥H¥D°Ê³ê¿ô
-        rb.WakeUp();
-
-        // 2. ¼½©ñ«ùÄòªº­¸¦æ­µ®Ä
+        // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½òªº­ï¿½ï¿½æ­µï¿½ï¿½
         if (audioSource != null && flyingSound != null)
         {
             audioSource.clip = flyingSound;
-            audioSource.loop = true; // ³]©w¬°´`Àô¼½©ñ
+            audioSource.loop = true;
             audioSource.Play();
         }
     }
 
-    void FixedUpdate()
+    // ï¿½oï¿½ï¿½ï¿½Ú­Ì¦b Update() ï¿½Bï¿½zï¿½ï¿½ï¿½Ê©Mï¿½ï¿½ï¿½ï¿½Aï¿½oï¿½Ë·|ï¿½ï¿½ï¿½Fï¿½Ó¡]ï¿½Dï¿½ï¿½ï¿½zï¿½ï¿½ï¿½Ê¡^
+    void Update()
     {
-        // ««ª½¤É­°±±¨î (¨Ï¥ÎªÅ¥ÕÁä©M¥ª Shift Áä)
+        // 1. ï¿½ï¿½ï¿½à±±ï¿½ï¿½ (A/D ï¿½Î¥ï¿½ï¿½kï¿½ï¿½Vï¿½ï¿½)
+        // ï¿½ï¿½o A/D ï¿½äªºï¿½ï¿½Jï¿½ï¿½ (ï¿½dï¿½ï¿½ -1 ï¿½ï¿½ 1)
+        float turnInput = Input.GetAxis("Horizontal");
+
+        // ï¿½ï¿½ï¿½kï¿½ï¿½ï¿½ï¿½Gï¿½Ï¥ï¿½ transform.Rotate() ï¿½ï¿½{ï¿½ï¿½aï¿½ï¿½V
+        float yawRotation = turnInput * rotationSpeed * Time.deltaTime;
+        transform.Rotate(Vector3.up, yawRotation);
+
+        // 2. ï¿½eï¿½i/ï¿½ï¿½hï¿½ï¿½ï¿½ï¿½ (W/S ï¿½Î¤Wï¿½Uï¿½ï¿½Vï¿½ï¿½)
+        // ï¿½ï¿½o W/S ï¿½äªºï¿½ï¿½Jï¿½ï¿½ (ï¿½dï¿½ï¿½ -1 ï¿½ï¿½ 1)
+        float forwardInput = Input.GetAxis("Vertical");
+
+        // ï¿½eï¿½i/ï¿½ï¿½hï¿½Gï¿½Ï¥ï¿½ transform.Translate() ï¿½uï¿½Ûªï¿½ï¿½ï¿½Û¨ï¿½ï¿½ï¿½ï¿½eï¿½ï¿½(transform.forward)ï¿½ï¿½ï¿½ï¿½
+        Vector3 movement = transform.forward * forwardInput * moveSpeed * Time.deltaTime;
+        transform.Translate(movement, Space.World); // ï¿½ï¿½ï¿½ï¿½ï¿½Ê»Pï¿½@ï¿½É®yï¿½Ð¨tï¿½ï¿½ï¿½ (ï¿½iï¿½ï¿½Aï¿½ï¿½ transform.forward ï¿½ï¿½Xï¿½A)
+
+        // 3. ï¿½ï¿½ï¿½ï¿½ï¿½É­ï¿½ï¿½ï¿½ï¿½ï¿½ (Space ï¿½Wï¿½ï¿½ / LeftShift ï¿½Uï¿½ï¿½)
         float liftInput = 0f;
-        if (Input.GetKey(KeyCode.Space))      // ªÅ¥ÕÁä¡G¤W¤É
+        if (Input.GetKey(KeyCode.Space))      // ï¿½Å¥ï¿½ï¿½ï¿½Gï¿½Wï¿½ï¿½
             liftInput = 1f;
-        if (Input.GetKey(KeyCode.LeftShift))  // ¥ª Shift¡G¤U­°
+        if (Input.GetKey(KeyCode.LeftShift))  // ï¿½ï¿½ Shiftï¿½Gï¿½Uï¿½ï¿½
             liftInput = -1f;
 
-        Vector3 verticalThrust = Vector3.up * liftInput * thrustForce;
-        rb.AddForce(verticalThrust, ForceMode.Acceleration);
+        // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ê¡Gï¿½ï¿½ï¿½ï¿½ï¿½×§ï¿½ y ï¿½bï¿½ï¿½m
+        transform.position += Vector3.up * liftInput * verticalSpeed * Time.deltaTime;
 
-        // Âà¦V©M«e«á¶É±×±±¨î (¨Ï¥Î A/D/W/S Áä)
-        float horizontalInput = Input.GetAxis("Horizontal"); // A/D Áä
-        float verticalAxis = Input.GetAxis("Vertical");     // W/S Áä
-
-        // ¬I¥[¥ª¥kÂà¦Vªº§á¤O (Yaw)
-        rb.AddTorque(Vector3.up * horizontalInput * yawTorque, ForceMode.Acceleration);
-
-        // ¬I¥[«e«á¶É±×ªº§á¤O (Pitch)
-        rb.AddTorque(transform.right * verticalAxis * pitchTorque, ForceMode.Acceleration);
+        // ï¿½iï¿½ï¿½ï¿½nï¿½jï¿½Ñ©ï¿½Ú­Ì¥Dï¿½nï¿½Ï¥ï¿½ transform ï¿½iï¿½æ²¾ï¿½Ê¡Aï¿½oï¿½Ì»Ý­nï¿½ï¿½ï¿½] Rigidbody ï¿½ï¿½ï¿½tï¿½ï¿½
+        // ï¿½_ï¿½hï¿½ï¿½ï¿½zï¿½ï¿½ï¿½ï¿½ï¿½iï¿½ï¿½yï¿½ï¿½ï¿½Æ°Ê©Î³tï¿½×²Ö¿n
+        if (rb != null)
+        {
+            rb.linearVelocity = Vector3.zero;
+            rb.angularVelocity = Vector3.zero;
+        }
     }
 
-    // ³B²z¸I¼²¨Æ¥ó (¼²¨ì¹êÅé»ÙÃªª«)
+    // ï¿½Bï¿½zï¿½Iï¿½ï¿½ï¿½Æ¥ï¿½ (ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ãªï¿½ï¿½)
     void OnCollisionEnter(Collision collision)
     {
-        // °²³]©Ò¦³¹êÅé»ÙÃªª«³£³]©w¤F Tag ¬° "Obstacle"
         if (collision.gameObject.CompareTag("Obstacle"))
         {
             if (audioSource != null && collisionSound != null)
             {
                 audioSource.PlayOneShot(collisionSound);
             }
-            Debug.Log("¼²¨ì»ÙÃªª«¡I");
+            Debug.Log("ï¿½ï¿½ï¿½ï¿½ï¿½Ãªï¿½ï¿½ï¿½I");
         }
     }
 
-    // ³B²zÄ²µo¨Æ¥ó (¶¶§Q³q¹L«ü©wªº PassZone °Ï°ì)
+    // ï¿½Bï¿½zÄ²ï¿½oï¿½Æ¥ï¿½ (ï¿½ï¿½ï¿½Qï¿½qï¿½L PassZone ï¿½Ï°ï¿½)
     void OnTriggerEnter(Collider other)
     {
-        // ½T«OÄ²µoªºª«¥ó¬O PassZone 
         if (other.gameObject.CompareTag("PassZone"))
         {
             int zoneID = other.gameObject.GetInstanceID();
 
-            // ÀË¬d³o­Ó PassZone ªº ID ¬O§_¤w¸g¦b§Ú­Ìªº°O¿ý¤¤
+            // ï¿½uï¿½ï¿½ï¿½Ä¤@ï¿½ï¿½ï¿½iï¿½J PassZone ï¿½É¤~ï¿½ï¿½ï¿½ñ­µ®ï¿½
             if (!passedZones.Contains(zoneID))
             {
-                // ¦pªG¬O²Ä¤@¦¸³q¹L
                 if (audioSource != null && passSound != null)
                 {
                     audioSource.PlayOneShot(passSound);
                 }
 
-                // ±N³o­Ó PassZone ªº ID °O¿ý¤U¨Ó¡A½T«O¥¦¤£·|¦AÄ²µo­µ®Ä
                 passedZones.Add(zoneID);
-                Debug.Log("¶¶§Q³q¹L¤@­Ó PassZone¡I");
+                Debug.Log("ï¿½ï¿½ï¿½Qï¿½qï¿½Lï¿½@ï¿½ï¿½ PassZoneï¿½I");
             }
         }
     }
